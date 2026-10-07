@@ -1,0 +1,6 @@
+{
+  "extraPaths": ["scripts"],
+  "venvPath": ".",
+  "venv": ".venv",
+  "reportMissingImports": "none"
+}

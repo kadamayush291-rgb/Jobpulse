@@ -1,0 +1,9 @@
+apache-airflow==2.7.3
+pandas>=2.1.4
+psycopg2-binary==2.9.9
+sqlalchemy==1.4.50
+python-dotenv==1.0.0
+great-expectations==0.18.8
+duckdb>=1.0.0
+pyspark>=3.5.0
+kafka-python-ng>=2.2.0
