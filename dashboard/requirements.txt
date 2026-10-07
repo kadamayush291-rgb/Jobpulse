@@ -6,4 +6,5 @@ numpy>=1.26.0
 sqlalchemy==1.4.50
 python-dotenv==1.0.0
 gunicorn==21.2.0
-
+duckdb>=1.0.0
+kafka-python-ng>=2.2.0

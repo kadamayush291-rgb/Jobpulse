@@ -1,191 +1,246 @@
-# 🚀 JobPulse — Automated Job Market Data Engineering Pipeline
+# 🚀 JobPulse — Real-Time & Batch Job Market Data Engineering Pipeline
 
-## 📖 Introduction
+[![Python](https://img.shields.io/badge/Python-3.11%20%7C%203.12%20%7C%203.14-blue.svg)](https://www.python.org/)
+[![Apache Kafka](https://img.shields.io/badge/Apache%20Kafka-KRaft%20Mode-red.svg)](https://kafka.apache.org/)
+[![Apache Spark](https://img.shields.io/badge/Apache%20Spark-3.5%20%2F%204.0-orange.svg)](https://spark.apache.org/)
+[![DuckDB](https://img.shields.io/badge/DuckDB-OLAP%20Engine-yellow.svg)](https://duckdb.org/)
+[![Apache Airflow](https://img.shields.io/badge/Apache%20Airflow-2.7.3-teal.svg)](https://airflow.apache.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-blue.svg)](https://www.postgresql.org/)
+[![Flask](https://img.shields.io/badge/Dashboard-Flask%20%2B%20Chart.js-brightgreen.svg)](http://flask.palletsprojects.com/)
 
-**JobPulse** is a data engineering project that automatically collects job-posting data from online sources/datasets and converts raw job data into structured and useful information. The entire workflow is orchestrated by **Apache Airflow**, making the pipeline scalable, repeatable, reliable and easier to monitor.
+An end-to-end modern Data Engineering platform combining **event-driven real-time streaming ingestion** with **distributed batch ETL orchestration**. JobPulse continuously ingests, validates, cleans, and analyzes job postings from 16+ sector-specific datasets (Indian unicorns, GCC tech centers, global AI/deep-tech, US fintech, and more) to provide instant labor market intelligence.
 
-## 🏗️ Architecture
+---
+
+## 🏗️ Architecture Overview
+
+JobPulse implements a dual-path data architecture (**Lambda-inspired architecture**):
 
 ```
-Data Source → Ingestion → Raw Storage → Airflow → Transformation → Data Quality → PostgreSQL → Dashboard
+                                  ┌───────────────────────────────┐
+                                  │   16+ Streaming CSV Datasets  │
+                                  │   (Indian & Global Tech Jobs) │
+                                  └───────────────┬───────────────┘
+                                                  │
+                                                  ▼
+                                 ┌─────────────────────────────────┐
+                                 │   Kafka Streaming Ingestion     │
+                                 │   (Topic: jobpulse-job-postings)│
+                                 └───────────────┬─────────────────┘
+                                                 │
+                                                 ▼
+                                 ┌─────────────────────────────────┐
+                                 │    PySpark Data Quality Engine  │
+                                 │   • Schema & Range Validation   │
+                                 │   • Deduplication & Cleaning    │
+                                 │   • Salary & Location Normalizer│
+                                 └───────────────┬─────────────────┘
+                                                 │
+                                                 ▼
+                                 ┌─────────────────────────────────┐
+                                 │     DuckDB OLAP Fast Store      │
+                                 │  (Vectorized SQL, Sub-ms Stats) │
+                                 └───────────────┬─────────────────┘
+                                                 │
+                                                 ▼
+┌───────────────────────────┐    ┌─────────────────────────────────┐
+│     Apache Airflow        │───▶│  PostgreSQL / SQLite Storage    │
+│  (Batch ETL Orchestrator) │    │  (Relational Staging & Storage) │
+└───────────────────────────┘    └───────────────┬─────────────────┘
+                                                 │
+                                                 ▼
+                                 ┌─────────────────────────────────┐
+                                 │  Interactive Flask Dashboard    │
+                                 │  • Real-Time Kafka Stream KPIs  │
+                                 │  • Spark Quality Scorecards     │
+                                 │  • DuckDB OLAP Analytics        │
+                                 │  • Chart.js Interactive Graphs  │
+                                 └─────────────────────────────────┘
 ```
 
-```
-┌──────────┐    ┌───────────┐    ┌─────────────┐    ┌─────────────────┐
-│ CSV Data │───▶│ Ingestion │───▶│ Raw Storage  │───▶│  Apache Airflow │
-│ (Source) │    │ (Python)  │    │  (Staging)   │    │ (Orchestrator)  │
-└──────────┘    └───────────┘    └─────────────┘    └────────┬────────┘
-                                                             │
-                    ┌────────────────────────────────────────┘
-                    ▼
-┌────────────────┐    ┌──────────────┐    ┌────────────┐    ┌───────────┐
-│ Transformation │───▶│ Data Quality │───▶│ PostgreSQL │───▶│ Dashboard │
-│ (Pandas)       │    │ (Validation) │    │ (Database) │    │ (Flask)   │
-└────────────────┘    └──────────────┘    └────────────┘    └───────────┘
-```
+---
 
-## 🔄 How It Works
+## 🛠️ Technology Stack
 
-The project follows an automated **ETL (Extract, Transform, Load) pipeline**:
+| Layer | Technology | Key Role |
+|---|---|---|
+| **Streaming Ingestion** | **Apache Kafka (KRaft mode)** | High-throughput distributed message broker for raw job events |
+| **Data Quality & Transformation** | **Apache Spark (PySpark)** | Distributed batch & stream processing, anomaly detection, deduplication |
+| **Fast OLAP Analytics** | **DuckDB** | In-process columnar OLAP storage for ultra-low latency analytics |
+| **Workflow Orchestration** | **Apache Airflow 2.7.3** | Automated DAG workflow scheduling, task retries, error handling |
+| **Relational Storage** | **PostgreSQL 15 / SQLite** | Structured storage for staging, dimensional tables, and run logs |
+| **API & Backend** | **Flask + Python** | REST API endpoints for data retrieval and scheduler management |
+| **Frontend & Visualization** | **Chart.js + Modern CSS** | Interactive live dashboards with real-time streaming controls |
+| **Containerization** | **Docker & Docker Compose** | Multi-container setup for Kafka, Spark, Airflow, and Postgres |
 
-1. **Data Ingestion** — Job data (title, company, location, skills, experience, salary) is collected from CSV datasets or available APIs.
-
-2. **Apache Airflow** — Acts as the **workflow orchestrator**, scheduling and managing pipeline tasks: extraction, cleaning, transformation, validation, and loading.
-
-3. **Data Cleaning** — Python + Pandas handles missing values, incorrect formats, and duplicate job postings.
-
-4. **Data Transformation** — Raw data is converted into structured information with standardized job titles, parsed salaries, normalized locations, and individual skills extraction.
-
-5. **Data Quality** — Validation checks ensure the data is accurate, complete, and consistent. Failed checks can trigger Airflow retries or task failures.
-
-6. **Database** — Processed data is stored in **PostgreSQL**, which serves as the structured storage / data warehouse layer.
-
-7. **Analytics** — Processed data is analyzed to identify the most demanded skills, top job roles, hiring locations, companies, and experience levels.
-
-8. **Dashboard** — A Flask-based dashboard presents these insights using interactive charts, tables, and KPIs.
+---
 
 ## 📂 Project Structure
 
 ```
 JobPulse/
-├── docker-compose.yml          # Docker services (Airflow, PostgreSQL, Dashboard)
-├── .env                        # Environment variables
-├── requirements.txt            # Core Python dependencies
-├── README.md                   # Project documentation
+├── docker-compose.yml                  # Multi-container setup (Kafka, Spark, Airflow, Postgres)
+├── requirements.txt                    # Root environment dependencies
+├── pyrightconfig.json                  # IDE & language server configuration
+├── .env.example                        # Template for environment variables
+├── README.md                           # Project documentation
 │
 ├── dags/
-│   └── jobpulse_etl_dag.py     # Airflow DAG — 6-task pipeline
+│   └── jobpulse_etl_dag.py             # Airflow DAG (6-task batch ETL pipeline)
 │
 ├── scripts/
-│   ├── __init__.py
-│   ├── db_utils.py             # Database connection utility
-│   ├── extract.py              # Task 1: CSV extraction → raw_jobs table
-│   ├── transform.py            # Task 2: Data cleaning & transformation
-│   ├── validate.py             # Task 3: Data quality validation
-│   ├── load.py                 # Task 4: Load to PostgreSQL + skill categorization
-│   └── analytics.py            # Task 5: Compute summary metrics
-│
-├── data/
-│   └── jobs_dataset.csv        # Sample job market dataset (~200 rows)
+│   ├── kafka_pipeline.py               # Kafka producer & consumer streaming client
+│   ├── spark_quality_engine.py         # PySpark data quality checks & cleaning
+│   ├── duckdb_storage.py               # DuckDB OLAP engine & materialized views
+│   ├── kafka_stream_scheduler.py       # Automated 1-minute streaming scheduler
+│   ├── run_streaming_pipeline.py       # Standalone runner for continuous streaming
+│   ├── run_kafka_spark_duckdb_pipeline.py # End-to-end Kafka + Spark + DuckDB pipeline
+│   ├── generate_streaming_datasets.py  # Generator for 16 specialized industry datasets
+│   ├── test_all_streams.py             # Validation script for stream workflows
+│   ├── extract.py                      # Task 1: Staging extraction
+│   ├── transform.py                    # Task 2: Data cleaning & standardization
+│   ├── validate.py                     # Task 3: Quality validation
+│   ├── load.py                         # Task 4: Load to database & skill dimensions
+│   ├── analytics.py                    # Task 5: Compute summary metrics
+│   └── db_utils.py                     # Database connection helper
 │
 ├── dashboard/
-│   ├── app.py                  # Flask API backend (12+ REST endpoints)
-│   ├── requirements.txt        # Dashboard dependencies
+│   ├── app.py                          # Flask backend with 15+ REST endpoints
+│   ├── requirements.txt                # Dashboard runtime dependencies
 │   └── templates/
-│       └── index.html          # Interactive analytics dashboard
+│       └── index.html                  # Interactive live telemetry dashboard
 │
-├── sql/
-│   └── init.sql                # PostgreSQL schema (5 tables)
+├── data/
+│   ├── jobs_dataset.csv                # Baseline dataset
+│   └── streaming_datasets/             # 16 domain-specific CSV datasets:
+│       ├── dataset_1_india_unicorns.csv
+│       ├── dataset_2_india_mnc_gcc.csv
+│       ├── dataset_3_india_it_services_consulting.csv
+│       ├── dataset_4_india_ai_deeptech.csv
+│       ├── dataset_5_us_fintech_banking.csv
+│       ├── dataset_6_europe_cloud_platform.csv
+│       ├── dataset_7_india_gcc_deeptech.csv
+│       ├── dataset_8_us_healthcare_lifesciences.csv
+│       ├── dataset_9_apac_ecommerce_logistics.csv
+│       ├── dataset_10_us_edtech_learning.csv
+│       ├── dataset_11_india_startup_product.csv
+│       ├── dataset_12_us_defense_govt.csv
+│       ├── dataset_13_climate_tech_esg.csv
+│       ├── dataset_14_india_remote_global.csv
+│       └── dataset_15_global_ai_llm.csv
 │
-├── logs/                       # Airflow logs
-└── plugins/                    # Airflow plugins
+└── sql/
+    └── init.sql                        # PostgreSQL schema definition (5 tables)
 ```
 
-## 🛠️ Technology Stack
+---
 
-| Component          | Technology                  |
-|--------------------|-----------------------------|
-| Programming        | Python 3.11                 |
-| Data Processing    | Pandas                      |
-| Orchestration      | Apache Airflow 2.7.3        |
-| Database           | PostgreSQL 15               |
-| API Backend        | Flask                       |
-| Visualization      | Chart.js                    |
-| Containerization   | Docker & Docker Compose     |
-| Version Control    | Git / GitHub                |
+## ⚡ Core Pipeline Capabilities
 
-## ⚙️ Airflow DAG — Pipeline Tasks
+### 1. Automated Real-Time Streaming (Kafka)
+- Feeds 16 unique datasets sequentially on an automated **1-minute schedule**.
+- Handles schema negotiation, message batching, and network retries with automatic fallback buffers (`kafka_stream_buffer.jsonl`).
+- Simulates realistic enterprise events across global and Indian tech markets.
 
-```
-extract_csv_data → transform_data → validate_raw_data → load_transformed_data → compute_analytics → log_pipeline_run
-```
+### 2. PySpark Data Quality Engine
+- **Duplicate Detection & Removal**: Identifies fuzzy duplicate postings across title, company, and location.
+- **Completeness & Null Verification**: Validates critical fields with custom quality scorecards.
+- **Outlier & Range Clamping**: Identifies unrealistic compensation ranges and sanitizes values.
+- **Standardization**: Cleans and normalizes skills, experience levels, and city hierarchies.
 
-| Task | Description |
-|------|-------------|
-| `extract_csv_data` | Reads CSV dataset, loads into `raw_jobs` staging table |
-| `transform_data` | Parses salaries, standardizes dates, splits locations, cleans data |
-| `validate_raw_data` | Data quality checks — completeness, ranges, duplicates, consistency |
-| `load_transformed_data` | Inserts into `transformed_jobs` + creates `job_skills` dimension table |
-| `compute_analytics` | Computes 11 categories of summary metrics |
-| `log_pipeline_run` | Records pipeline run status in `pipeline_runs` table |
+### 3. DuckDB Columnar OLAP Analytics
+- Aggregates millions of rows in sub-millisecond query latency.
+- Dynamically computes:
+  - Top in-demand programming languages and frameworks
+  - Salary distributions across experience tiers
+  - Remote vs. on-site trends
+  - City-wise hiring volumes (Bengaluru, Hyderabad, Pune, SF, London, Singapore)
 
-## 📊 Key Data Engineering Concepts Used
+### 4. Interactive Live Dashboard
+- **Streaming Telemetry**: Live Kafka message rates, latency, and ingestion counters.
+- **Quality Scorecard**: Instant counters for records processed, valid records, duplicates purged, and rejection reasons.
+- **Interactive Controls**: Trigger on-demand stream bursts or trigger the batch Airflow ETL directly from the browser.
 
-- ✅ ETL/ELT Pipeline
-- ✅ Data Ingestion
-- ✅ Data Cleaning & Transformation
-- ✅ Data Quality & Validation
-- ✅ Workflow Orchestration (Airflow)
-- ✅ Scheduling & Automation
-- ✅ PostgreSQL Database
-- ✅ Error Handling & Retries
-- ✅ Data Visualization (Dashboard)
-- ✅ Containerization (Docker)
+---
 
-### Option A: Local Run (No Docker Required — Lightweight Mode)
+## 🚀 Getting Started
 
-Run the automated pipeline with built-in task retries, background scheduling, and the dashboard:
+### 1. Clone & Setup
 
 ```bash
-# 1. Start pipeline with default 5-minute scheduler + retries + dashboard:
+git clone https://github.com/kadamayush291-rgb/Jobpulse.git
+cd Jobpulse
+
+# Create and activate virtual environment
+python -m venv .venv
+.\.venv\Scripts\activate   # On Windows
+# source .venv/bin/activate # On Linux/macOS
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+---
+
+### 2. Run Modes
+
+#### 🌟 Mode A: Standalone Real-Time Streaming & Dashboard (Recommended for quick testing)
+
+Run the real-time streaming pipeline and web dashboard locally without needing external containers:
+
+```bash
+# Terminal 1: Start the Dashboard with Kafka & DuckDB background scheduler
+python dashboard/app.py
+```
+Open **[http://localhost:5000](http://localhost:5000)** to view live streaming telemetry.
+
+To trigger an immediate streaming batch test:
+```bash
+# Terminal 2: Run the streaming pipeline
+python scripts/run_streaming_pipeline.py
+```
+
+---
+
+#### 🌟 Mode B: Complete Local Runner with Scheduler & Retries
+
+```bash
 python run_local.py
-
-# Optional CLI flags:
-python run_local.py --interval 10      # Customize schedule interval in minutes
-python run_local.py --retries 5        # Set max 5 retries on failure (with exponential backoff)
-python run_local.py --run-once         # Run pipeline once with retries and exit (no server)
-python run_local.py --no-schedule      # Start dashboard without recurring background schedule
 ```
-
-- **Dashboard**: Visit `http://localhost:5000`
-- Click the **"⚡ Run Pipeline Now"** button in the dashboard to trigger an on-demand run.
-- Monitor execution status, retry policies, and historical run logs in real-time under the **Scheduler** section.
+Options:
+- `--interval 5`: Change scheduler interval in minutes.
+- `--retries 3`: Set maximum retry attempts on failure.
+- `--run-once`: Execute single run and exit.
 
 ---
 
-### Option B: Docker & Apache Airflow Orchestration
+#### 🌟 Mode C: Enterprise Containerized Orchestration (Docker Compose)
 
-If you have Docker Desktop installed and want enterprise-grade Airflow orchestration:
+Starts Kafka (KRaft), Spark Master + Worker, Airflow 2.7.3, and PostgreSQL 15:
 
 ```bash
-# 1. Start all container services:
 docker-compose up -d
-
-# 2. Wait ~45-60 seconds for Airflow initialization
 ```
 
-### Access Points
-
-| Service         | URL                      | Credentials         |
-|-----------------|--------------------------|----------------------|
-| Airflow UI      | http://localhost:8080     | admin / admin        |
-| Dashboard       | http://localhost:5000     | —                    |
-| PostgreSQL      | localhost:5432            | jobpulse / jobpulse123 |
-
-### Running the Pipeline in Airflow
-
-1. Open Airflow UI at `http://localhost:8080` (admin / admin)
-2. Find the `jobpulse_etl_pipeline` DAG
-3. Toggle it **ON** (unpause) — the Airflow scheduler will now automatically trigger it on the `@daily` schedule.
-4. Click **Trigger DAG** (Play button) to run the pipeline immediately on-demand.
-5. Monitor task execution, dependencies, and retry attempts in the Graph or Grid views.
-6. Visit the Dashboard at `http://localhost:5000` to see live results.
-
-### Stopping Docker Services
-
-```bash
-docker-compose down        # Stop services
-docker-compose down -v     # Stop and remove data volumes
-```
-
-## 🎯 Expected Outcome
-
-The system provides an automated and reliable pipeline that transforms raw job-market data into meaningful insights, helping users understand current technology and employment trends.
-
-## 💡 Main Advantage
-
-Instead of manually processing job data, the entire workflow is automated through Airflow, making the pipeline **scalable, repeatable, reliable, and easier to monitor**.
+| Service | Port | Description |
+|---|---|---|
+| **Airflow Webserver** | `http://localhost:8080` (admin / admin) | Orchestration DAG management |
+| **Spark Master UI** | `http://localhost:8081` | Spark cluster monitoring |
+| **Flask Dashboard** | `http://localhost:5000` | Real-time analytics UI |
+| **Apache Kafka** | `localhost:9092` | KRaft message broker |
+| **PostgreSQL** | `localhost:5432` | Relational storage layer |
 
 ---
 
-*JobPulse — Data Engineering Mini Project*
+## 📊 Analytics & Insights
+
+The pipeline automatically derives:
+- **Skill Demand Indices**: Frequency analysis of modern tools (Python, SQL, Spark, Kafka, AWS, Docker, React, PyTorch).
+- **Salary Benchmarking**: Mean, median, and percentile salary distributions by experience tier.
+- **Regional Tech Hub Dynamics**: Distribution of job opportunities across Tier-1 hubs.
+- **Data Quality Health**: Real-time pass/fail rates for every incoming stream.
+
+---
+
+## 📄 License
+This project is open-source and available under the [MIT License](LICENSE).
